@@ -22,6 +22,18 @@ class Image
         return [$image, $width, $height];
     }
 
+    public function resizeByHeight($width, $height, $image, $trueHeight = 100)
+    {
+        if ($width > $trueHeight) {
+            $times = floor($height / $trueHeight);
+            $trueWith = floor($width / $times);
+            $im = imagecreatetruecolor($trueWith, $trueHeight);
+            imagecopyresampled($im, $image, 0, 0, 0, 0, $trueWith, $trueHeight, $width, $height);
+            return [$im, $trueWith, $trueHeight];
+        }
+        return [$image, $width, $height];
+    }
+
     public function imageToGray($fileName)
     {
         if (!preg_match('/^http|^https/', $fileName) && !is_file($fileName)) {
@@ -62,79 +74,6 @@ class Image
         imagejpeg($imageNew, '111.jpeg');
         imagedestroy($image);
         imagedestroy($imageNew);
-    }
-
-    /**
-     * 通过像素rgb值计算灰度值 然后通过灰度值获取相对应的字符
-     */
-    public function tochars($r, $g, $b)
-    {
-        //计算灰度值 
-        //1.浮点算法：Gray=R0.3+G0.59+B*0.11 
-        //2.整数方法：Gray=(R30+G59+B*11)/100 
-        //3.移位方法：Gray =(R76+G151+B*28)>>8; 
-        //4.平均值法：Gray=（R+G+B）/3; 
-        //5.仅取绿色：Gray=G；
-        $gray = floor(($r + $g + $b) / 3);
-
-
-        //分级转换成字符表示
-        //要想把0-255(rgb值)转换成相对应字符，由于 ceil(255 / (字符集长度)) 的结果值为 self::level
-        $index = floor($gray / self::level);
-        // if ($index >= strlen(self::charHash)) {
-        //     $index = strlen(self::charHash) - 1;
-        // }
-        $char = self::charHash[(int)$index];
-        if ($char == '#' || $char == '  ') {
-            return $char;
-        } else {
-            return ' ';
-        }
-    }
-
-    public function transferToAsc($fileName)
-    {
-        if (!preg_match('/^http|^https/', $fileName) && !is_file($fileName)) {
-            exit('文件不存在');
-        }
-
-        $size = getimagesize($fileName);
-        $width = $size[0];
-        $height = $size[1];
-
-        if ($size['mime'] == 'image/png') {
-            $image = imagecreatefrompng($fileName);
-        } else if ($size['mime'] == 'image/jpeg' || $size['mime'] == 'image/jpg') {
-            $image = imagecreatefromjpeg($fileName);
-        } else {
-            exit('图片格式不符');
-        }
-
-        if (!$image) {
-            exit('获取图片失败');
-        }
-
-        list($image, $width, $height) = $this->tosmallim($width, $height, $image, 800);
-
-        $str = '<span style="font-size: 8pt;
-        letter-spacing: 4px;
-        line-height: 8pt;
-        font-weight: bold;display: block;
-        font-family: monospace;
-        white-space: pre;
-        margin: 1em 0;">';
-        for ($i = 0; $i < $height; $i++) {
-            for ($j = 0; $j < $width; $j++) {
-                $rgb = ImageColorat($image, $j, $i);
-                $r = ($rgb >> 16) & 0xFF;
-                $g = ($rgb >> 8) & 0xFF;
-                $b = $rgb & 0xFF;
-                $str .= $this->tochars($r, $g, $b);
-            }
-            $str .= '<br>';
-        }
-        $str .= '</span>';
-        echo $str;
     }
 
     public function black($fileName)
@@ -185,22 +124,19 @@ class Image
 
     public function writeDemo()
     {
-        $font = 'F:\www\IDcard\simhei.ttf';
+        $font = 'E:\WWW\getNumberFromPic\simhei.ttf';
         $image = imagecreatetruecolor(670, 100);
         $baise = imagecolorallocate($image, 255, 255, 255);
         imagefill($image, 0, 0, $baise);
         $color = imagecolorallocate($image, 0, 0, 0);
         imagettftext($image, 100, 0, 0, 100, $color, $font, '0123456789');
-        imagejpeg($image, '1_100.jpeg');
+        return [$image, 670, 100];
     }
 
-    public function numberCut()
+    public function numberCut($image, $width, $height)
     {
-        $file = './1.jpeg';
-        $image = imagecreatefromjpeg($file);
-        $imageInfo = getimagesize($file);
-        $width = $imageInfo[0];
-        $height = $imageInfo[1];
+        list($image, $width, $height) = $this->resizeByHeight($width, $height, $image, 100);
+
         $arr = [];
         $buck = 0;
 
@@ -208,10 +144,7 @@ class Image
             $haysh = 0;
             $temp = [];
             for ($j = 0; $j < $height; $j++) {
-                $rgb = ImageColorat($image, $i, $j);
-                $r = ($rgb >> 16) & 0xFF;
-                $g = ($rgb >> 8) & 0xFF;
-                $b = $rgb & 0xFF;
+                list($r, $g, $b) = $this->getPixlRGB($image, $i, $j);
 
                 if ($r < 50 && $g < 50 && $b < 50) {
                     $temp[$j] = 1;
@@ -220,7 +153,7 @@ class Image
                     $temp[$j] = 0;
                 }
             }
-            if ($haysh >= 5) {
+            if ($haysh >= 10) {
                 $arr[$buck][] = $temp;
             } else {
                 $buck++;
@@ -242,22 +175,20 @@ class Image
             if ($val) {
                 $str = '';
                 $len = count($val);
-                for ($i = 0; $i < 230; $i++) {
+                for ($i = 0; $i < 100; $i++) {
                     for ($j = 0; $j < $len; $j++) {
                         $str .= $val[$j][$i];
                     }
                 }
 
                 foreach ($data as $key => $item) {
-                    similar_text(md5($str), md5($item), $percent);
-                    if ($percent >= 40) {
-                        echo $key;
-                        continue;
-                    }
+                    similar_text($str, $item, $percent);
+                    echo "数字:" . $key . '---相似度:' . $percent . ' --- ';
                 }
-                // exit;
+                echo '<br>';
             }
         }
+        echo 'end';
     }
 
     public function getNumberString(int $number = 0)
@@ -270,8 +201,121 @@ class Image
         }
         return $str;
     }
+
+    /**
+     * 提取数字
+     */
+    public function extractNumber()
+    {
+        $file = './images/1.jpeg';
+        $size = getimagesize($file);
+        $image = imagecreatefromjpeg($file);
+
+        $width = $size[0];
+        $height = $size[1];
+
+        //list($image, $width, $height) = $this->toSmallim($width, $height, $image, 500);
+
+        $hayshStartY = 0;
+        $hayshStartX = 0;
+
+        $hayshEndY = 0;
+        $hayshEndX = 0;
+
+        //由上到下取出数字开始的纵坐标
+        for ($i = 0; $i < $height; $i++) {
+            $blackPointCount = 0;
+            $totalPointCount = $width;
+            for ($j = 0; $j < $width; $j++) {
+                list($r, $g, $b) = $this->getPixlRGB($image, $j, $i);
+                if ($r < 50 && $g < 50 && $b < 50) { //黑色
+                    $blackPointCount++;
+                }
+            }
+            if (($blackPointCount / $totalPointCount) >= 0.09) {
+                $hayshStartY = $i;
+                break;
+            }
+        }
+
+        //由下到上取出数字结束的纵坐标
+        for ($i = $height - 1; $i >= 0; $i--) {
+            $blackPointCount = 0;
+            $totalPointCount = $width;
+            for ($j = 0; $j < $width; $j++) {
+                list($r, $g, $b) = $this->getPixlRGB($image, $j, $i);
+                if ($r < 50 && $g < 50 && $b < 50) { //黑色
+                    $blackPointCount++;
+                }
+            }
+            if (($blackPointCount / $totalPointCount) >= 0.09) {
+                $hayshEndY = $i;
+                break;
+            }
+        }
+
+        //由左到右取出数字开始的横坐标
+        for ($i = 0; $i < $width; $i++) {
+            $blackPointCount = 0;
+            $totalPointCount = $height;
+            for ($j = 0; $j < $height; $j++) {
+                list($r, $g, $b) = $this->getPixlRGB($image, $i, $j);
+                if ($r < 50 && $g < 50 && $b < 50) { //黑色
+                    $blackPointCount++;
+                }
+            }
+            if (($blackPointCount / $totalPointCount) >= 0.09) {
+                $hayshStartX = $i;
+                break;
+            }
+        }
+
+        //由右到左取出数字结束的横坐标
+        for ($i = $width - 1; $i >= 0; $i--) {
+            $blackPointCount = 0;
+            $totalPointCount = $height;
+            for ($j = 0; $j < $height; $j++) {
+                list($r, $g, $b) = $this->getPixlRGB($image, $i, $j);
+                if ($r < 50 && $g < 50 && $b < 50) { //黑色
+                    $blackPointCount++;
+                }
+            }
+            if (($blackPointCount / $totalPointCount) >= 0.09) {
+                $hayshEndX = $i;
+                break;
+            }
+        }
+
+        if ($hayshStartX && $hayshStartY && $hayshEndX && $hayshEndY) {
+            $widthNew = $hayshEndX - $hayshStartX;
+            $heightNew = $hayshEndY - $hayshStartY;
+            $imageNew = imagecreatetruecolor($widthNew, $heightNew);
+            $color = imagecolorallocate($imageNew, 255, 255, 255);
+            imagefill($imageNew, 0, 0, $color);
+
+            imagecopyresampled($imageNew, $image, 0, 0, $hayshStartX, $hayshStartY, $widthNew, $heightNew, $widthNew, $heightNew);
+
+            imagedestroy($image);
+            return [$imageNew, $widthNew, $heightNew];
+        }
+        return false;
+    }
+
+
+    public function getPixlRGB($image, int $x, int $y)
+    {
+        $rgb = ImageColorat($image, $x, $y);
+        $r = ($rgb >> 16) & 0xFF;
+        $g = ($rgb >> 8) & 0xFF;
+        $b = $rgb & 0xFF;
+        return [$r, $g, $b];
+    }
 }
 
 set_time_limit(0);
 $obj = new Image();
-$obj->numberCut();
+// list($image, $width, $height) = $obj->extractNumber();
+list($image, $width, $height) = $obj->writeDemo();
+// imagejpeg($image, '2222222.jpeg');
+// exit;
+$obj->numberCut($image, $width, $height);
