@@ -2,10 +2,15 @@
 
 class Image
 {
-    //字符集
-    const charHash = "#ABCDEFGHIJKLMNOPQRSTUVWXYZ@$%??__ff--++~~''  ::..  ``  ";
+    /**
+     * 设置三基色 小于此值都认为是黑色
+     */
+    const R = 50;
+    const G = 50;
+    const B = 50;
 
-    const level = 5;
+    const DEMO_FONT_SIZE = 100;
+
     /**
      * 缩放图片尺寸
      */
@@ -76,119 +81,49 @@ class Image
         imagedestroy($imageNew);
     }
 
-    public function black($fileName)
+
+
+    public function numberMatch($file)
     {
-        if (!preg_match('/^http|^https/', $fileName) && !is_file($fileName)) {
-            exit('文件不存在');
-        }
+        list($image, $width, $height) = $this->extractNumber($file);
 
-        $size = getimagesize($fileName);
-        $width = $size[0];
-        $height = $size[1];
-
-        if ($size['mime'] == 'image/png') {
-            $image = imagecreatefrompng($fileName);
-        } else if ($size['mime'] == 'image/jpeg' || $size['mime'] == 'image/jpg') {
-            $image = imagecreatefromjpeg($fileName);
-        } else {
-            exit('图片格式不符');
-        }
-
-        if (!$image) {
-            exit('获取图片失败');
-        }
-
-        $imageNew = imagecreatetruecolor($width, $height);
-        for ($i = 0; $i < $height; $i++) {
-            for ($j = 0; $j < $width; $j++) {
-                $rgb = ImageColorat($image, $j, $i);
-                $r = ($rgb >> 16) & 0xFF;
-                $g = ($rgb >> 8) & 0xFF;
-                $b = $rgb & 0xFF;
-                if ($r >= 100 && $g >= 100 && $b >= 100) {
-                    $color = imagecolorallocate($imageNew, 255, 255, 255);
-                    imagesetpixel($imageNew, $j, $i, $color);
-                } else {
-                    $color = imagecolorallocate($imageNew, 0, 0, 0);
-                    imagesetpixel($imageNew, $j, $i, $color);
-                }
-            }
-        }
-
-        imagejpeg($imageNew, '1.jpeg');
-        imagedestroy($image);
-        imagedestroy($imageNew);
-
-        $this->transferToAsc('1.jpeg');
-    }
-
-    public function writeDemo()
-    {
-        $font = 'E:\WWW\getNumberFromPic\simhei.ttf';
-        $image = imagecreatetruecolor(670, 100);
-        $baise = imagecolorallocate($image, 255, 255, 255);
-        imagefill($image, 0, 0, $baise);
-        $color = imagecolorallocate($image, 0, 0, 0);
-        imagettftext($image, 100, 0, 0, 100, $color, $font, '0123456789');
-        return [$image, 670, 100];
-    }
-
-    public function numberCut($image, $width, $height)
-    {
         list($image, $width, $height) = $this->resizeByHeight($width, $height, $image, 100);
 
-        $arr = [];
-        $buck = 0;
+        $transferData = $this->imageTransferData($image, $width, $height);
 
-        for ($i = 0; $i < $width; $i++) {
-            $haysh = 0;
-            $temp = [];
-            for ($j = 0; $j < $height; $j++) {
-                list($r, $g, $b) = $this->getPixlRGB($image, $i, $j);
+        $stringData[0] = $this->RsaEncrypt($this->getNumberString(0));
+        $stringData[1] = $this->RsaEncrypt($this->getNumberString(1));
+        //$data[2] = $this->RsaEncrypt($this->getNumberString(2));
+        $stringData[3] = $this->RsaEncrypt($this->getNumberString(3));
+        //$data[4] = $this->RsaEncrypt($this->getNumberString(4));
+        $stringData[5] = $this->RsaEncrypt($this->getNumberString(5));
+        //$data[6] = $this->RsaEncrypt($this->getNumberString(6));
+        $stringData[7] = $this->RsaEncrypt($this->getNumberString(7));
+        $stringData[8] = $this->RsaEncrypt($this->getNumberString(8));
+        $stringData[9] = $this->RsaEncrypt($this->getNumberString(9));
 
-                if ($r < 50 && $g < 50 && $b < 50) {
-                    $temp[$j] = 1;
-                    $haysh++;
-                } else {
-                    $temp[$j] = 0;
-                }
-            }
-            if ($haysh >= 10) {
-                $arr[$buck][] = $temp;
-            } else {
-                $buck++;
+        $data = [];
+        foreach ($transferData as $val) {
+            if ($val && count($val) >= 30) {
+                $data[] = $val;
             }
         }
 
-        $data[0] = $this->getNumberString(0);
-        $data[1] = $this->getNumberString(1);
-        $data[2] = $this->getNumberString(2);
-        $data[3] = $this->getNumberString(3);
-        $data[4] = $this->getNumberString(4);
-        $data[5] = $this->getNumberString(5);
-        $data[6] = $this->getNumberString(6);
-        $data[7] = $this->getNumberString(7);
-        $data[8] = $this->getNumberString(8);
-        $data[9] = $this->getNumberString(9);
-
-        foreach ($arr as $val) {
-            if ($val) {
-                $str = '';
-                $len = count($val);
-                for ($i = 0; $i < 100; $i++) {
-                    for ($j = 0; $j < $len; $j++) {
-                        $str .= $val[$j][$i];
-                    }
-                }
-
-                foreach ($data as $key => $item) {
-                    similar_text($str, $item, $percent);
-                    echo "数字:" . $key . '---相似度:' . $percent . ' --- ';
-                }
-                echo '<br>';
+        foreach ($data as $item) {
+            $item = $this->formatTransferData($item);
+            foreach ($item as $a) {
+                echo implode('', $a) . '<br>';
             }
+            echo '<br><br><br><br>';
+            // $mergeData = $this->RsaEncrypt($this->mergeTransferData($item));
+            // foreach ($stringData as $k => $v) {
+            //     similar_text($mergeData, $v, $percent);
+            //     echo "数字:" . $k . '---相似度:' . $percent . '<br />';
+            // }
+            // echo '<br /><br /><br /><br /><br />';
+            // break;
         }
-        echo 'end';
+        echo '结束';
     }
 
     public function getNumberString(int $number = 0)
@@ -205,9 +140,8 @@ class Image
     /**
      * 提取数字
      */
-    public function extractNumber()
+    public function extractNumber($file)
     {
-        $file = './images/1.jpeg';
         $size = getimagesize($file);
         $image = imagecreatefromjpeg($file);
 
@@ -232,7 +166,7 @@ class Image
                     $blackPointCount++;
                 }
             }
-            if (($blackPointCount / $totalPointCount) >= 0.09) {
+            if (($blackPointCount / $totalPointCount) >= 0.005) {
                 $hayshStartY = $i;
                 break;
             }
@@ -264,7 +198,7 @@ class Image
                     $blackPointCount++;
                 }
             }
-            if (($blackPointCount / $totalPointCount) >= 0.09) {
+            if (($blackPointCount / $totalPointCount) >= 0.15) {
                 $hayshStartX = $i;
                 break;
             }
@@ -285,7 +219,8 @@ class Image
                 break;
             }
         }
-
+        // print_r([$hayshStartX, $hayshStartY, $hayshEndX, $hayshEndY]);
+        // exit;
         if ($hayshStartX && $hayshStartY && $hayshEndX && $hayshEndY) {
             $widthNew = $hayshEndX - $hayshStartX;
             $heightNew = $hayshEndY - $hayshStartY;
@@ -302,6 +237,10 @@ class Image
     }
 
 
+
+    /**
+     * 获取像素点rgb
+     */
     public function getPixlRGB($image, int $x, int $y)
     {
         $rgb = ImageColorat($image, $x, $y);
@@ -310,12 +249,130 @@ class Image
         $b = $rgb & 0xFF;
         return [$r, $g, $b];
     }
+
+    public function createDemoData()
+    {
+        //创建demo图片
+        list($image, $width, $height) = $this->createDemoImage();
+        //图片转数字
+        $transferData = $this->imageTransferData($image, $width, $height);
+
+        $this->saveTranferData($transferData);
+        imagejpeg($image, './images/demo.jpeg');
+        echo '完成!';
+    }
+
+    /**
+     * 创建demo图片
+     */
+    public function createDemoImage()
+    {
+        $width = 800;
+        $height = 100;
+        $font = __DIR__ . '\fonts\OCR-B10BT.ttf';
+        $image = imagecreatetruecolor($width, $height);
+        $baise = imagecolorallocate($image, 255, 255, 255);
+        imagefill($image, 0, 0, $baise);
+        $color = imagecolorallocate($image, 0, 0, 0);
+        imagettftext($image, $height, 0, 0, $height, $color, $font, '0123456789');
+        return [$image, $width, $height];
+    }
+
+    /**
+     * 图片转字符串 白色像素点为0黑色为1
+     */
+    public function imageTransferData($image, int $width, int $height)
+    {
+        $data = [];
+        $block = 0;
+        $flag = false;
+        for ($i = 0; $i < $width; $i++) {
+            $hit = 0;
+            $temp = [];
+            for ($j = 0; $j < $height; $j++) {
+                list($r, $g, $b) = $this->getPixlRGB($image, $i, $j);
+                if ($r < self::R && $g < self::G && $b < self::B) {
+                    $hit++;
+                    $temp[$j] = 1;
+                } else {
+                    $temp[$j] = 0;
+                }
+            }
+            if ($hit >= 5) {
+                $flag = true;
+                $data[$block][] = $temp;
+            } else {
+                if ($flag) {
+                    $block++;
+                }
+                $flag = false;
+            }
+        }
+        return $data;
+    }
+
+    /**
+     * 拼接转换后的数字为字符串
+     */
+    public function mergeTransferData(array $data)
+    {
+        $mergeData = '';
+        $len = count($data); //图片中数字的长度
+        for ($i = 0; $i < self::DEMO_FONT_SIZE; $i++) {
+            $temp = [];
+            for ($j = 0; $j < $len; $j++) {
+                $temp[] = $data[$j][$i];
+            }
+            $mergeData .= implode('', $temp);
+        }
+        return $mergeData;
+    }
+
+    /**
+     * 格式化转换后的数字用于存储
+     */
+    public function formatTransferData(array $data)
+    {
+        $transferData = [];
+        $len = count($data); //图片中数字的长度
+        for ($i = 0; $i < self::DEMO_FONT_SIZE; $i++) {
+            $temp = [];
+            for ($j = 0; $j < $len; $j++) {
+                $temp[] = $data[$j][$i];
+            }
+            $transferData[] = $temp;
+        }
+        return $transferData;
+    }
+
+    /**
+     * 保存demo图片数字化信息
+     */
+    public function saveTranferData(array $data)
+    {
+        foreach ($data as $key => $val) {
+            if ($val) {
+                $data = $this->formatTransferData($val);
+                foreach ($data as $a) {
+                    echo implode('', $a) . '<br>';
+                }
+                echo '<br><br><br><br>';
+                //file_put_contents('./data/' . $key . '_.txt', json_encode($data));
+            }
+        }
+    }
+
+    /**
+     * 加密字符串
+     */
+    public function RsaEncrypt($str)
+    {
+        return $str;
+        // return password_hash($str, PASSWORD_BCRYPT, ['cost' => 8]);
+    }
 }
 
 set_time_limit(0);
 $obj = new Image();
-// list($image, $width, $height) = $obj->extractNumber();
-list($image, $width, $height) = $obj->writeDemo();
-// imagejpeg($image, '2222222.jpeg');
-// exit;
-$obj->numberCut($image, $width, $height);
+$obj->numberMatch('./images/1.jpeg');
+// $obj->createDemoData();
