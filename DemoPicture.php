@@ -85,9 +85,9 @@ class DemoPicturer
 	 */
 	private function formatTransferData(array $data)
 	{
-		$transferData = [];
+		$transferData = []; 
 		$len = count($data); //图片中数字的长度
-		for ($i = 0; $i < self::DEMO_FONT_SIZE; $i++) {
+		for ($i = 0; $i < self::DEMO_FONT_SIZE; $i++) { 
 			$temp = [];
 			for ($j = 0; $j < $len; $j++) {
 				$temp[] = $data[$j][$i];

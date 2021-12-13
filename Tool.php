@@ -6,7 +6,7 @@ class Tool
         $number = intval($number); 
 
         if ($number < 0 || $number > 9) {
-            return false;
+            return false; 
         }
         
 		$str = '';
