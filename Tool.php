@@ -14,7 +14,7 @@ class Tool
 		$data = json_decode(file_get_contents($fileName));
 		foreach ($data as $item) {
 			$str .= implode('', $item);
-		}
+		} 
 		return $str;
 	}
 }
